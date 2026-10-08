@@ -1,0 +1,1185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>외근 관리 대장 (1팀~4팀)</title>
+  <!-- SheetJS for Excel Export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Google Fonts & Lucide Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-light: #eff6ff;
+      --text-main: #1f2937;
+      --text-muted: #6b7280;
+      --border: #e5e7eb;
+      --bg-page: #f8fafc;
+      --card-bg: #ffffff;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --team1: #3b82f6;
+      --team2: #10b981;
+      --team3: #8b5cf6;
+      --team4: #f97316;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      line-height: 1.5;
+      padding: 24px;
+    }
+
+    .container {
+      max-width: 1380px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .header-title h1 {
+      font-size: 26px;
+      font-weight: 700;
+      color: #111827;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-title p {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-excel {
+      background: #059669;
+      color: white;
+    }
+    .btn-excel:hover {
+      background: #047857;
+    }
+
+    .btn-outline {
+      background: white;
+      border-color: var(--border);
+      color: var(--text-main);
+    }
+    .btn-outline:hover {
+      background: #f3f4f6;
+    }
+
+    .btn-danger {
+      background: #fee2e2;
+      color: var(--danger);
+      border-color: #fca5a5;
+    }
+    .btn-danger:hover {
+      background: #fecaca;
+    }
+
+    /* Stat Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: var(--card-bg);
+      padding: 18px 20px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      position: relative;
+    }
+
+    .stat-card .label {
+      font-size: 13px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .stat-card .value {
+      font-size: 26px;
+      font-weight: 700;
+      margin-top: 6px;
+      color: #111827;
+    }
+
+    .stat-card .desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .stat-card.team1 { border-left: 4px solid var(--team1); }
+    .stat-card.team2 { border-left: 4px solid var(--team2); }
+    .stat-card.team3 { border-left: 4px solid var(--team3); }
+    .stat-card.team4 { border-left: 4px solid var(--team4); }
+
+    /* Main Table Section */
+    .main-card {
+      background: var(--card-bg);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+      overflow: hidden;
+    }
+
+    /* Tabs & Toolbar */
+    .toolbar {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .team-tabs {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+
+    .tab-btn {
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: #f9fafb;
+      color: var(--text-muted);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s;
+    }
+
+    .tab-btn.active {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+      box-shadow: 0 2px 4px rgba(37,99,235,0.25);
+    }
+
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .search-input, .date-input, .select-input {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+      background: white;
+    }
+
+    .search-input:focus, .date-input:focus, .select-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(37,99,235,0.15);
+    }
+
+    .search-input {
+      min-width: 240px;
+      flex: 1;
+    }
+
+    /* Table */
+    .table-responsive {
+      overflow-x: auto;
+      max-height: 620px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    thead th {
+      background: #f9fafb;
+      color: #374151;
+      font-weight: 600;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    tbody td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      color: #374151;
+      vertical-align: middle;
+    }
+
+    tbody tr:hover {
+      background-color: #f9fafb;
+    }
+
+    .badge-team {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .badge-team1 { background: #dbeafe; color: #1e40af; }
+    .badge-team2 { background: #d1fae5; color: #065f46; }
+    .badge-team3 { background: #ede9fe; color: #5b21b6; }
+    .badge-team4 { background: #ffedd5; color: #9a3412; }
+
+    .status-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .status-ongoing { background: #fef3c7; color: #b45309; }
+    .status-done { background: #e0f2fe; color: #0369a1; }
+
+    .action-icons {
+      display: flex;
+      gap: 6px;
+    }
+    .btn-icon {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .btn-icon:hover {
+      background: #e5e7eb;
+      color: var(--text-main);
+    }
+    .btn-icon.del:hover {
+      background: #fee2e2;
+      color: var(--danger);
+    }
+
+    .empty-state {
+      padding: 48px 20px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      backdrop-filter: blur(2px);
+    }
+
+    .modal {
+      background: white;
+      border-radius: 12px;
+      width: 95%;
+      max-width: 640px;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+    }
+
+    .modal-header {
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-header h3 {
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+
+    .modal-body {
+      padding: 24px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group.full {
+      grid-column: span 2;
+    }
+
+    .form-group label {
+      font-size: 13px;
+      font-weight: 600;
+      color: #374151;
+    }
+
+    .form-control {
+      padding: 9px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .form-control:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(37,99,235,0.15);
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      background: #f9fafb;
+    }
+
+    /* Print Styles (Official Format) */
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+      .no-print, header, .stats-grid, .toolbar, .action-icons, .modal-backdrop {
+        display: none !important;
+      }
+      .main-card {
+        border: none;
+        box-shadow: none;
+      }
+      .table-responsive {
+        max-height: none;
+        overflow: visible;
+      }
+      #printApprovalArea {
+        display: block !important;
+      }
+      table {
+        border: 1px solid #000;
+        font-size: 11pt;
+      }
+      thead th, tbody td {
+        border: 1px solid #333 !important;
+        padding: 8px 6px;
+        color: black !important;
+      }
+      @page {
+        size: A4 landscape;
+        margin: 15mm;
+      }
+    }
+
+    #printApprovalArea {
+      display: none;
+      margin-bottom: 20px;
+    }
+    .approval-table {
+      margin-left: auto;
+      border-collapse: collapse;
+      text-align: center;
+      width: 280px;
+      font-size: 12px;
+    }
+    .approval-table th, .approval-table td {
+      border: 1px solid #333;
+      padding: 4px;
+    }
+    .approval-table td {
+      height: 48px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Print Area (Header with Approval stamps) -->
+  <div id="printApprovalArea">
+    <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 12px;">
+      <div>
+        <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 4px;" id="printSheetTitle">외 근 대 장</h2>
+        <p style="font-size: 12px; color: #555;" id="printPeriodText"></p>
+      </div>
+      <table class="approval-table">
+        <tr>
+          <th rowspan="2" style="width: 25px; background: #eee;">결<br>재</th>
+          <th>담당</th>
+          <th>팀장</th>
+          <th>부서장</th>
+        </tr>
+        <tr>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="no-print">
+    <div class="header-title">
+      <h1>📋 외근 관리 대장</h1>
+      <p>1팀 · 2팀 · 3팀 · 4팀 통합 외근 일정 및 이력 관리 대장</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-primary" onclick="openModal()">
+        <span>➕</span> 외근 등록
+      </button>
+      <button class="btn btn-excel" onclick="exportToExcel()">
+        <span>📊</span> Excel 다운로드 (.xlsx)
+      </button>
+      <button class="btn btn-outline" onclick="printDoc()">
+        <span>🖨️</span> 인쇄 (결재양식)
+      </button>
+      <button class="btn btn-outline" onclick="openTeamConfigModal()">
+        <span>⚙️</span> 팀명 변경
+      </button>
+      <button class="btn btn-outline" onclick="resetSampleData()">
+        <span>🔄</span> 샘플 초기화
+      </button>
+    </div>
+  </header>
+
+  <!-- Stat Cards -->
+  <div class="stats-grid no-print">
+    <div class="stat-card">
+      <div class="label">오늘 외근 인원</div>
+      <div class="value" id="statTodayCount">0명</div>
+      <div class="desc" id="statTodayDate">-</div>
+    </div>
+    <div class="stat-card team1">
+      <div class="label" id="statTeam1Name">1팀 외근 건수</div>
+      <div class="value" id="statTeam1Count">0건</div>
+      <div class="desc">이번 달 누적</div>
+    </div>
+    <div class="stat-card team2">
+      <div class="label" id="statTeam2Name">2팀 외근 건수</div>
+      <div class="value" id="statTeam2Count">0건</div>
+      <div class="desc">이번 달 누적</div>
+    </div>
+    <div class="stat-card team3">
+      <div class="label" id="statTeam3Name">3팀 외근 건수</div>
+      <div class="value" id="statTeam3Count">0건</div>
+      <div class="desc">이번 달 누적</div>
+    </div>
+    <div class="stat-card team4">
+      <div class="label" id="statTeam4Name">4팀 외근 건수</div>
+      <div class="value" id="statTeam4Count">0건</div>
+      <div class="desc">이번 달 누적</div>
+    </div>
+  </div>
+
+  <!-- Main Card -->
+  <div class="main-card">
+    <!-- Toolbar / Filters -->
+    <div class="toolbar no-print">
+      <div class="team-tabs">
+        <button class="tab-btn active" onclick="setTeamTab('all')">전체보기 (<span id="countAll">0</span>)</button>
+        <button class="tab-btn" onclick="setTeamTab('1')"><span id="tabName1">1팀</span> (<span id="countTeam1">0</span>)</button>
+        <button class="tab-btn" onclick="setTeamTab('2')"><span id="tabName2">2팀</span> (<span id="countTeam2">0</span>)</button>
+        <button class="tab-btn" onclick="setTeamTab('3')"><span id="tabName3">3팀</span> (<span id="countTeam3">0</span>)</button>
+        <button class="tab-btn" onclick="setTeamTab('4')"><span id="tabName4">4팀</span> (<span id="countTeam4">0</span>)</button>
+      </div>
+
+      <div class="filter-bar">
+        <label style="font-size: 13px; color: var(--text-muted);">조회 기간:</label>
+        <input type="date" id="filterStartDate" class="date-input" onchange="renderTable()">
+        <span>~</span>
+        <input type="date" id="filterEndDate" class="date-input" onchange="renderTable()">
+        
+        <select id="filterStatus" class="select-input" onchange="renderTable()">
+          <option value="">전체 상태</option>
+          <option value="외근중">외근중</option>
+          <option value="복귀완료">복귀완료</option>
+        </select>
+
+        <input type="text" id="searchInput" class="search-input" placeholder="이름, 방문처, 외근목적 검색..." onkeyup="renderTable()">
+
+        <button class="btn btn-outline" style="padding: 7px 12px;" onclick="clearFilters()">필터 초기화</button>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="table-responsive">
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 50px; text-align: center;">No.</th>
+            <th>외근일자</th>
+            <th>팀명</th>
+            <th>성명 (직급)</th>
+            <th>방문처 (행선지)</th>
+            <th>외근 목적</th>
+            <th>시간 (출발 ~ 복귀)</th>
+            <th>교통편</th>
+            <th>동행자</th>
+            <th>상태</th>
+            <th class="no-print" style="width: 90px; text-align: center;">관리</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <!-- JS dynamic render -->
+        </tbody>
+      </table>
+      <div id="emptyNotice" class="empty-state" style="display: none;">
+        등록된 외근 내역이 없습니다.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: 외근 등록 / 수정 -->
+<div class="modal-backdrop" id="entryModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">외근 등록</h3>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <form id="entryForm" onsubmit="handleFormSubmit(event)">
+      <input type="hidden" id="entryId">
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>외근 일자 *</label>
+            <input type="date" id="formDate" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label>소속 팀 *</label>
+            <select id="formTeam" class="form-control" required>
+              <option value="1" id="optTeam1">1팀</option>
+              <option value="2" id="optTeam2">2팀</option>
+              <option value="3" id="optTeam3">3팀</option>
+              <option value="4" id="optTeam4">4팀</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>성명 *</label>
+            <input type="text" id="formName" class="form-control" placeholder="홍길동" required>
+          </div>
+
+          <div class="form-group">
+            <label>직급</label>
+            <input type="text" id="formPosition" class="form-control" placeholder="대리, 과장 등">
+          </div>
+
+          <div class="form-group full">
+            <label>방문처 (거래처 / 행선지) *</label>
+            <input type="text" id="formDestination" class="form-control" placeholder="예: (주)한국상사 본사 (강남구)" required>
+          </div>
+
+          <div class="form-group full">
+            <label>외근 목적 *</label>
+            <input type="text" id="formPurpose" class="form-control" placeholder="예: 신규 프로젝트 계약 체결 미팅" required>
+          </div>
+
+          <div class="form-group">
+            <label>출발 시간 *</label>
+            <input type="time" id="formStartTime" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label>복귀(예정) 시간</label>
+            <input type="time" id="formEndTime" class="form-control">
+          </div>
+
+          <div class="form-group">
+            <label>이동 수단</label>
+            <select id="formTransport" class="form-control">
+              <option value="대중교통">대중교통 (지하철/버스)</option>
+              <option value="법인차량">법인차량</option>
+              <option value="개인차량">개인차량 (자차)</option>
+              <option value="도보">도보</option>
+              <option value="기타">기타</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>진행 상태</label>
+            <select id="formStatus" class="form-control">
+              <option value="외근중">외근중</option>
+              <option value="복귀완료">복귀완료</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>동행자</label>
+            <input type="text" id="formCompanion" class="form-control" placeholder="동행 인원명 (선택)">
+          </div>
+
+          <div class="form-group">
+            <label>비고 / 비상연락처</label>
+            <input type="text" id="formNote" class="form-control" placeholder="연락처 또는 기타 메모">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal()">취소</button>
+        <button type="submit" class="btn btn-primary">저장하기</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: 팀명 설정 -->
+<div class="modal-backdrop" id="teamConfigModal">
+  <div class="modal" style="max-width: 480px;">
+    <div class="modal-header">
+      <h3>팀 이름 커스텀 설정</h3>
+      <button class="modal-close" onclick="closeTeamConfigModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+        회사의 실제 조직명에 맞춰 1팀~4팀의 명칭을 변경할 수 있습니다.
+      </p>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <div class="form-group">
+          <label>1팀 표시명</label>
+          <input type="text" id="cfgTeam1" class="form-control" value="1팀">
+        </div>
+        <div class="form-group">
+          <label>2팀 표시명</label>
+          <input type="text" id="cfgTeam2" class="form-control" value="2팀">
+        </div>
+        <div class="form-group">
+          <label>3팀 표시명</label>
+          <input type="text" id="cfgTeam3" class="form-control" value="3팀">
+        </div>
+        <div class="form-group">
+          <label>4팀 표시명</label>
+          <input type="text" id="cfgTeam4" class="form-control" value="4팀">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" onclick="closeTeamConfigModal()">취소</button>
+      <button type="button" class="btn btn-primary" onclick="saveTeamConfig()">설정 저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Initial Data & Config
+  const STORAGE_KEY = 'outwork_records_data';
+  const CONFIG_KEY = 'outwork_team_names';
+
+  let teamNames = {
+    '1': '1팀',
+    '2': '2팀',
+    '3': '3팀',
+    '4': '4팀'
+  };
+
+  let currentTab = 'all'; // 'all', '1', '2', '3', '4'
+  let records = [];
+
+  // Default Sample Data
+  const defaultSamples = [
+    {
+      id: 'rec-1',
+      date: new Date().toISOString().slice(0, 10),
+      team: '1',
+      name: '김민수',
+      position: '팀장',
+      destination: '(주)미래솔루션 여의도 사옥',
+      purpose: 'Q4 시스템 유지보수 정기 회의',
+      startTime: '10:00',
+      endTime: '13:30',
+      transport: '대중교통',
+      status: '복귀완료',
+      companion: '이지원 대리',
+      note: '010-1234-5678'
+    },
+    {
+      id: 'rec-2',
+      date: new Date().toISOString().slice(0, 10),
+      team: '2',
+      name: '박서준',
+      position: '과장',
+      destination: '한국테크 판교 R&D 센터',
+      purpose: '신규 기술 스펙 검토 및 협업 미팅',
+      startTime: '13:00',
+      endTime: '17:00',
+      transport: '법인차량',
+      status: '외근중',
+      companion: '',
+      note: '차량: 12가 3456'
+    },
+    {
+      id: 'rec-3',
+      date: new Date().toISOString().slice(0, 10),
+      team: '3',
+      name: '최유진',
+      position: '대리',
+      destination: '서울시청 스마트도시과',
+      purpose: '공공 입찰 제안서 제출 및 대면 설명',
+      startTime: '14:00',
+      endTime: '16:30',
+      transport: '대중교통',
+      status: '외근중',
+      companion: '',
+      note: '제안서 원본 지참'
+    },
+    {
+      id: 'rec-4',
+      date: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+      team: '4',
+      name: '정현우',
+      position: '주임',
+      destination: '에이스물류 인천센터',
+      purpose: '물류 입고 현장 점검 및 검수',
+      startTime: '09:30',
+      endTime: '15:00',
+      transport: '개인차량',
+      status: '복귀완료',
+      companion: '',
+      note: '유류비 청구 예정'
+    }
+  ];
+
+  // Initialize
+  function init() {
+    loadTeamNames();
+    loadRecords();
+    updateUIWithTeamNames();
+    renderStats();
+    renderTable();
+  }
+
+  function loadTeamNames() {
+    const saved = localStorage.getItem(CONFIG_KEY);
+    if (saved) {
+      try {
+        teamNames = JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+
+  function saveTeamConfig() {
+    teamNames['1'] = document.getElementById('cfgTeam1').value.trim() || '1팀';
+    teamNames['2'] = document.getElementById('cfgTeam2').value.trim() || '2팀';
+    teamNames['3'] = document.getElementById('cfgTeam3').value.trim() || '3팀';
+    teamNames['4'] = document.getElementById('cfgTeam4').value.trim() || '4팀';
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(teamNames));
+    updateUIWithTeamNames();
+    renderStats();
+    renderTable();
+    closeTeamConfigModal();
+  }
+
+  function updateUIWithTeamNames() {
+    // Stat card labels
+    document.getElementById('statTeam1Name').textContent = `${teamNames['1']} 외근`;
+    document.getElementById('statTeam2Name').textContent = `${teamNames['2']} 외근`;
+    document.getElementById('statTeam3Name').textContent = `${teamNames['3']} 외근`;
+    document.getElementById('statTeam4Name').textContent = `${teamNames['4']} 외근`;
+
+    // Tab buttons
+    document.getElementById('tabName1').textContent = teamNames['1'];
+    document.getElementById('tabName2').textContent = teamNames['2'];
+    document.getElementById('tabName3').textContent = teamNames['3'];
+    document.getElementById('tabName4').textContent = teamNames['4'];
+
+    // Select options in Modal
+    document.getElementById('optTeam1').textContent = teamNames['1'];
+    document.getElementById('optTeam2').textContent = teamNames['2'];
+    document.getElementById('optTeam3').textContent = teamNames['3'];
+    document.getElementById('optTeam4').textContent = teamNames['4'];
+
+    // Settings modal inputs
+    document.getElementById('cfgTeam1').value = teamNames['1'];
+    document.getElementById('cfgTeam2').value = teamNames['2'];
+    document.getElementById('cfgTeam3').value = teamNames['3'];
+    document.getElementById('cfgTeam4').value = teamNames['4'];
+  }
+
+  function loadRecords() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        records = JSON.parse(saved);
+      } catch (e) {
+        records = [...defaultSamples];
+      }
+    } else {
+      records = [...defaultSamples];
+      saveRecords();
+    }
+  }
+
+  function saveRecords() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  }
+
+  function resetSampleData() {
+    if (confirm('샘플 데이터로 초기화하시겠습니까? 기존 등록 데이터가 변경됩니다.')) {
+      records = [...defaultSamples];
+      saveRecords();
+      renderStats();
+      renderTable();
+    }
+  }
+
+  // Navigation & Filtering
+  function setTeamTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.team-tabs .tab-btn').forEach((btn, idx) => {
+      if (tab === 'all' && idx === 0) btn.classList.add('active');
+      else if (tab === '1' && idx === 1) btn.classList.add('active');
+      else if (tab === '2' && idx === 2) btn.classList.add('active');
+      else if (tab === '3' && idx === 3) btn.classList.add('active');
+      else if (tab === '4' && idx === 4) btn.classList.add('active');
+      else btn.classList.remove('active');
+    });
+    renderTable();
+  }
+
+  function clearFilters() {
+    document.getElementById('filterStartDate').value = '';
+    document.getElementById('filterEndDate').value = '';
+    document.getElementById('filterStatus').value = '';
+    document.getElementById('searchInput').value = '';
+    renderTable();
+  }
+
+  // Render Statistics
+  function renderStats() {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayRecords = records.filter(r => r.date === todayStr);
+    
+    document.getElementById('statTodayCount').textContent = `${todayRecords.length}명`;
+    document.getElementById('statTodayDate').textContent = `${todayStr} 기준`;
+
+    // 팀별 카운트 (이번 달 기준)
+    const currentMonth = todayStr.slice(0, 7);
+    const monthRecords = records.filter(r => r.date.startsWith(currentMonth));
+
+    const t1 = monthRecords.filter(r => r.team === '1').length;
+    const t2 = monthRecords.filter(r => r.team === '2').length;
+    const t3 = monthRecords.filter(r => r.team === '3').length;
+    const t4 = monthRecords.filter(r => r.team === '4').length;
+
+    document.getElementById('statTeam1Count').textContent = `${t1}건`;
+    document.getElementById('statTeam2Count').textContent = `${t2}건`;
+    document.getElementById('statTeam3Count').textContent = `${t3}건`;
+    document.getElementById('statTeam4Count').textContent = `${t4}건`;
+
+    // 탭 뱃지 카운트
+    document.getElementById('countAll').textContent = records.length;
+    document.getElementById('countTeam1').textContent = records.filter(r => r.team === '1').length;
+    document.getElementById('countTeam2').textContent = records.filter(r => r.team === '2').length;
+    document.getElementById('countTeam3').textContent = records.filter(r => r.team === '3').length;
+    document.getElementById('countTeam4').textContent = records.filter(r => r.team === '4').length;
+  }
+
+  // Render Table
+  function renderTable() {
+    const tbody = document.getElementById('tableBody');
+    const emptyNotice = document.getElementById('emptyNotice');
+
+    const startDate = document.getElementById('filterStartDate').value;
+    const endDate = document.getElementById('filterEndDate').value;
+    const statusFilter = document.getElementById('filterStatus').value;
+    const searchVal = document.getElementById('searchInput').value.trim().toLowerCase();
+
+    const filtered = records.filter(item => {
+      if (currentTab !== 'all' && item.team !== currentTab) return false;
+      if (startDate && item.date < startDate) return false;
+      if (endDate && item.date > endDate) return false;
+      if (statusFilter && item.status !== statusFilter) return false;
+      if (searchVal) {
+        const text = `${item.name} ${item.position || ''} ${item.destination} ${item.purpose} ${item.companion || ''}`.toLowerCase();
+        if (!text.includes(searchVal)) return false;
+      }
+      return true;
+    });
+
+    // Sort by date desc, then startTime desc
+    filtered.sort((a, b) => {
+      if (b.date !== a.date) return b.date.localeCompare(a.date);
+      return (b.startTime || '').localeCompare(a.startTime || '');
+    });
+
+    tbody.innerHTML = '';
+    if (filtered.length === 0) {
+      emptyNotice.style.display = 'block';
+      return;
+    }
+    emptyNotice.style.display = 'none';
+
+    filtered.forEach((item, index) => {
+      const tr = document.createElement('tr');
+      const teamBadgeClass = `badge-team badge-team${item.team}`;
+      const statusClass = item.status === '외근중' ? 'status-ongoing' : 'status-done';
+
+      tr.innerHTML = `
+        <td style="text-align: center; color: var(--text-muted); font-size: 13px;">${index + 1}</td>
+        <td style="font-weight: 500;">${item.date}</td>
+        <td><span class="${teamBadgeClass}">${teamNames[item.team] || item.team + '팀'}</span></td>
+        <td><strong>${item.name}</strong> <span style="font-size: 12px; color: var(--text-muted);">${item.position || ''}</span></td>
+        <td style="font-weight: 500;">${item.destination}</td>
+        <td style="color: #4b5563;">${item.purpose}</td>
+        <td style="white-space: nowrap;">${item.startTime || '-'} ~ ${item.endTime || '미정'}</td>
+        <td><span style="font-size: 13px; color: #4b5563;">${item.transport || '-'}</span></td>
+        <td><span style="font-size: 13px; color: #6b7280;">${item.companion || '-'}</span></td>
+        <td><span class="status-badge ${statusClass}">${item.status || '외근중'}</span></td>
+        <td class="no-print" style="text-align: center;">
+          <div class="action-icons" style="justify-content: center;">
+            <button class="btn-icon" title="수정" onclick="editRecord('${item.id}')">✏️</button>
+            <button class="btn-icon del" title="삭제" onclick="deleteRecord('${item.id}')">🗑️</button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Modal Actions
+  function openModal(isEdit = false) {
+    document.getElementById('modalTitle').textContent = isEdit ? '외근 내역 수정' : '신규 외근 등록';
+    if (!isEdit) {
+      document.getElementById('entryForm').reset();
+      document.getElementById('entryId').value = '';
+      document.getElementById('formDate').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('formStartTime').value = '10:00';
+      document.getElementById('formEndTime').value = '17:00';
+      if (currentTab !== 'all') {
+        document.getElementById('formTeam').value = currentTab;
+      }
+    }
+    document.getElementById('entryModal').style.display = 'flex';
+  }
+
+  function closeModal() {
+    document.getElementById('entryModal').style.display = 'none';
+  }
+
+  function openTeamConfigModal() {
+    document.getElementById('teamConfigModal').style.display = 'flex';
+  }
+
+  function closeTeamConfigModal() {
+    document.getElementById('teamConfigModal').style.display = 'none';
+  }
+
+  function handleFormSubmit(e) {
+    e.preventDefault();
+    const id = document.getElementById('entryId').value || 'rec-' + Date.now();
+    const record = {
+      id: id,
+      date: document.getElementById('formDate').value,
+      team: document.getElementById('formTeam').value,
+      name: document.getElementById('formName').value.trim(),
+      position: document.getElementById('formPosition').value.trim(),
+      destination: document.getElementById('formDestination').value.trim(),
+      purpose: document.getElementById('formPurpose').value.trim(),
+      startTime: document.getElementById('formStartTime').value,
+      endTime: document.getElementById('formEndTime').value,
+      transport: document.getElementById('formTransport').value,
+      status: document.getElementById('formStatus').value,
+      companion: document.getElementById('formCompanion').value.trim(),
+      note: document.getElementById('formNote').value.trim()
+    };
+
+    const existingIndex = records.findIndex(r => r.id === id);
+    if (existingIndex > -1) {
+      records[existingIndex] = record;
+    } else {
+      records.unshift(record);
+    }
+
+    saveRecords();
+    closeModal();
+    renderStats();
+    renderTable();
+  }
+
+  function editRecord(id) {
+    const item = records.find(r => r.id === id);
+    if (!item) return;
+
+    document.getElementById('entryId').value = item.id;
+    document.getElementById('formDate').value = item.date;
+    document.getElementById('formTeam').value = item.team;
+    document.getElementById('formName').value = item.name;
+    document.getElementById('formPosition').value = item.position || '';
+    document.getElementById('formDestination').value = item.destination;
+    document.getElementById('formPurpose').value = item.purpose;
+    document.getElementById('formStartTime').value = item.startTime;
+    document.getElementById('formEndTime').value = item.endTime;
+    document.getElementById('formTransport').value = item.transport;
+    document.getElementById('formStatus').value = item.status;
+    document.getElementById('formCompanion').value = item.companion || '';
+    document.getElementById('formNote').value = item.note || '';
+
+    openModal(true);
+  }
+
+  function deleteRecord(id) {
+    if (confirm('해당 외근 내역을 삭제하시겠습니까?')) {
+      records = records.filter(r => r.id !== id);
+      saveRecords();
+      renderStats();
+      renderTable();
+    }
+  }
+
+  // Print Action
+  function printDoc() {
+    const title = currentTab === 'all' ? '전사 통합 외근대장' : `${teamNames[currentTab]} 외근대장`;
+    document.getElementById('printSheetTitle').textContent = title;
+    
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('printPeriodText').textContent = `출력일자: ${today} | 총 ${records.length}건`;
+    
+    window.print();
+  }
+
+  // Excel Export using SheetJS
+  function exportToExcel() {
+    if (typeof XLSX === 'undefined') {
+      alert('엑셀 라이브러리를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
+    const wb = XLSX.utils.book_new();
+
+    // Helper: Map data to rows
+    const createSheetData = (items) => {
+      const header = [
+        'No.', '외근일자', '소속팀', '성명', '직급', '방문처(행선지)',
+        '외근 목적', '출발시간', '복귀시간', '교통편', '동행자', '진행상태', '비고/연락처'
+      ];
+      const rows = items.map((r, i) => [
+        i + 1,
+        r.date,
+        teamNames[r.team] || r.team + '팀',
+        r.name,
+        r.position || '',
+        r.destination,
+        r.purpose,
+        r.startTime || '',
+        r.endTime || '',
+        r.transport || '',
+        r.companion || '',
+        r.status || '',
+        r.note || ''
+      ]);
+      return [header, ...rows];
+    };
+
+    // 1. 전체 시트
+    const allWs = XLSX.utils.aoa_to_sheet(createSheetData(records));
+    // 컬럼 너비 설정
+    allWs['!cols'] = [
+      { wch: 6 },  { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+      { wch: 25 }, { wch: 30 }, { wch: 10 }, { wch: 10 }, { wch: 12 },
+      { wch: 14 }, { wch: 10 }, { wch: 20 }
+    ];
+    XLSX.utils.book_append_sheet(wb, allWs, '전체 외근대장');
+
+    // 2. 1팀 ~ 4팀 각각 시트 생성
+    ['1', '2', '3', '4'].forEach(teamId => {
+      const teamItems = records.filter(r => r.team === teamId);
+      const ws = XLSX.utils.aoa_to_sheet(createSheetData(teamItems));
+      ws['!cols'] = allWs['!cols'];
+      const sheetName = teamNames[teamId] || `${teamId}팀`;
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    });
+
+    // 다운로드 실행
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    XLSX.writeFile(wb, `외근대장_${today}.xlsx`);
+  }
+
+  // Initialize on load
+  window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
