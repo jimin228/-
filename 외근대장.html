@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>전사 외근 관리 시스템 (1팀~4팀)</title>
+  <title>전사 외근 관리 시스템 (1팀~4팀) - Supabase Cloud DB</title>
+  <!-- Supabase JS Client v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- SheetJS for Excel Export -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <!-- Google Fonts -->
@@ -77,6 +79,30 @@
       font-size: 13px;
       color: var(--text-muted);
       margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .db-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    .db-status-connected {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #bbf7d0;
+    }
+    .db-status-local {
+      background: #f3f4f6;
+      color: #4b5563;
+      border: 1px solid #e5e7eb;
     }
 
     .header-actions {
@@ -119,6 +145,15 @@
     .btn-excel:hover {
       background: #047857;
       box-shadow: 0 4px 12px rgba(5,150,105,0.25);
+    }
+
+    .btn-supabase {
+      background: #0ea5e9;
+      color: white;
+    }
+    .btn-supabase:hover {
+      background: #0284c7;
+      box-shadow: 0 4px 12px rgba(14,165,233,0.25);
     }
 
     .btn-outline {
@@ -755,11 +790,19 @@
   <header class="no-print">
     <div class="header-title">
       <h1>📋 전사 외근 관리 시스템</h1>
-      <p>1팀 · 2팀 · 3팀 · 4팀 맞춤형 실시간 외근 스케줄 및 결재 대장</p>
+      <p>
+        1팀 · 2팀 · 3팀 · 4팀 맞춤형 실시간 외근 스케줄 및 결재 대장
+        <span id="dbStatusBadge" class="db-status-badge db-status-local" onclick="openSupabaseModal()">
+          ⚪ 로컬 모드
+        </span>
+      </p>
     </div>
     <div class="header-actions">
       <button class="btn btn-primary" onclick="openModal()">
         <span>➕</span> 신규 외근 등록
+      </button>
+      <button class="btn btn-supabase" onclick="openSupabaseModal()">
+        <span>⚡</span> Supabase 연동
       </button>
       <button class="btn btn-excel" onclick="exportToExcel()">
         <span>📊</span> Excel 다운로드 (.xlsx)
@@ -1061,10 +1104,51 @@
   </div>
 </div>
 
+<!-- Modal: Supabase 연동 설정 -->
+<div class="modal-backdrop" id="supabaseModal">
+  <div class="modal" style="max-width: 540px;">
+    <div class="modal-header">
+      <h3>⚡ Supabase 클라우드 DB 연동 설정</h3>
+      <button class="modal-close" onclick="closeSupabaseModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 14px; font-size: 12.5px; color: #166534; margin-bottom: 16px;">
+        💡 <strong>Supabase 연동 혜택</strong><br>
+        - 전사 직원들이 <strong>동일한 외근 데이터</strong>를 실시간으로 공유하고 조회합니다.<br>
+        - 누군가 외근을 등록하거나 복귀하면 <strong>새로고침 없이 실시간(Realtime)</strong> 반영됩니다.<br>
+        - 프로젝트 폴더의 <code>supabase_schema.sql</code> 파일을 Supabase의 SQL Editor에 한 번만 실행해주시면 테이블이 자동 생성됩니다.
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="form-group">
+          <label>Supabase Project URL *</label>
+          <input type="text" id="spUrl" class="form-control" placeholder="https://xxxxxxxxxxxx.supabase.co">
+          <span style="font-size: 11.5px; color: var(--text-muted);">Supabase Project Settings > API > Project URL</span>
+        </div>
+        <div class="form-group">
+          <label>Supabase Anon (Public) Key *</label>
+          <input type="password" id="spKey" class="form-control" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+          <span style="font-size: 11.5px; color: var(--text-muted);">Supabase Project Settings > API > Project API keys > anon public</span>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline" style="color: var(--danger); border-color: #fca5a5;" onclick="disconnectSupabase()">연결 해제 (로컬 모드)</button>
+      <button type="button" class="btn btn-outline" onclick="closeSupabaseModal()">닫기</button>
+      <button type="button" class="btn btn-supabase" onclick="saveAndConnectSupabase()">연결 및 데이터 동기화</button>
+    </div>
+  </div>
+</div>
+
 <script>
-  // Initial Data & Config
+  // Storage Keys
   const STORAGE_KEY = 'outwork_records_data_v2';
   const CONFIG_KEY = 'outwork_team_names_v2';
+  const SP_URL_KEY = 'supabase_project_url';
+  const SP_KEY_KEY = 'supabase_anon_key';
+
+  let supabaseClient = null;
+  let isSupabaseConnected = false;
 
   let teamNames = {
     '1': '1팀',
@@ -1165,15 +1249,205 @@
   ];
 
   // Initialize
-  function init() {
+  async function init() {
     loadTeamNames();
-    loadRecords();
+    loadLocalRecords();
+    initSupabaseClient();
     updateUIWithTeamNames();
     renderStats();
     renderTable();
     renderCalendar();
+
+    if (isSupabaseConnected) {
+      await fetchFromSupabase();
+    }
   }
 
+  // Supabase Client Setup
+  function initSupabaseClient() {
+    const url = localStorage.getItem(SP_URL_KEY);
+    const key = localStorage.getItem(SP_KEY_KEY);
+    const badge = document.getElementById('dbStatusBadge');
+
+    if (url && key && typeof supabase !== 'undefined') {
+      try {
+        supabaseClient = supabase.createClient(url, key);
+        isSupabaseConnected = true;
+        badge.className = 'db-status-badge db-status-connected';
+        badge.innerHTML = '🟢 Supabase 클라우드 실시간 연동됨';
+        setupRealtimeSubscription();
+      } catch (e) {
+        console.error('Supabase Init Error:', e);
+        isSupabaseConnected = false;
+        badge.className = 'db-status-badge db-status-local';
+        badge.innerHTML = '⚪ 로컬 모드 (연결 실패)';
+      }
+    } else {
+      isSupabaseConnected = false;
+      badge.className = 'db-status-badge db-status-local';
+      badge.innerHTML = '⚪ 로컬 모드 (Supabase 미연동)';
+    }
+  }
+
+  // Supabase Realtime Subscription
+  function setupRealtimeSubscription() {
+    if (!supabaseClient) return;
+    try {
+      supabaseClient
+        .channel('public:outwork_records')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'outwork_records' }, payload => {
+          console.log('Realtime change received:', payload);
+          fetchFromSupabase(false);
+          showToast('동료의 외근 내역이 실시간으로 동기화되었습니다.', 'info');
+        })
+        .subscribe();
+    } catch (e) {
+      console.warn('Realtime subscription not active:', e);
+    }
+  }
+
+  // Supabase CRUD Operations
+  async function fetchFromSupabase(showNotify = false) {
+    if (!supabaseClient) return;
+    try {
+      const { data, error } = await supabaseClient
+        .from('outwork_records')
+        .select('*')
+        .order('date', { ascending: false });
+
+      if (error) throw error;
+
+      if (data && Array.isArray(data)) {
+        // Map snake_case DB columns to camelCase JS objects
+        records = data.map(row => ({
+          id: row.id,
+          date: row.date,
+          team: row.team,
+          name: row.name,
+          position: row.position || '',
+          destination: row.destination,
+          purpose: row.purpose,
+          startTime: row.start_time,
+          endTime: row.end_time || '',
+          transport: row.transport || '',
+          status: row.status || '외근중',
+          companion: row.companion || '',
+          expense: Number(row.expense) || 0,
+          note: row.note || ''
+        }));
+        saveLocalRecords();
+        renderStats();
+        renderTable();
+        renderCalendar();
+        if (showNotify) showToast(`Supabase에서 ${records.length}건 동기화 완료!`, 'success');
+      }
+
+      // Also fetch team names config
+      const { data: teamData } = await supabaseClient
+        .from('outwork_team_configs')
+        .select('*')
+        .eq('id', 'config_main')
+        .single();
+
+      if (teamData) {
+        teamNames = {
+          '1': teamData.team1 || '1팀',
+          '2': teamData.team2 || '2팀',
+          '3': teamData.team3 || '3팀',
+          '4': teamData.team4 || '4팀'
+        };
+        localStorage.setItem(CONFIG_KEY, JSON.stringify(teamNames));
+        updateUIWithTeamNames();
+      }
+    } catch (err) {
+      console.error('Supabase Fetch Error:', err);
+      if (showNotify) showToast('Supabase 동기화 실패: ' + err.message, 'warning');
+    }
+  }
+
+  async function syncRecordToSupabase(record) {
+    if (!supabaseClient) return;
+    try {
+      const dbRow = {
+        id: record.id,
+        date: record.date,
+        team: record.team,
+        name: record.name,
+        position: record.position,
+        destination: record.destination,
+        purpose: record.purpose,
+        start_time: record.startTime,
+        end_time: record.endTime,
+        transport: record.transport,
+        status: record.status,
+        companion: record.companion,
+        expense: record.expense,
+        note: record.note,
+        updated_at: new Date().toISOString()
+      };
+      const { error } = await supabaseClient.from('outwork_records').upsert(dbRow);
+      if (error) console.error('Supabase Upsert Error:', error);
+    } catch (e) {
+      console.error('Supabase sync failed:', e);
+    }
+  }
+
+  async function deleteFromSupabase(id) {
+    if (!supabaseClient) return;
+    try {
+      const { error } = await supabaseClient.from('outwork_records').delete().eq('id', id);
+      if (error) console.error('Supabase Delete Error:', error);
+    } catch (e) {
+      console.error('Supabase delete failed:', e);
+    }
+  }
+
+  // Modal: Supabase Settings
+  function openSupabaseModal() {
+    document.getElementById('spUrl').value = localStorage.getItem(SP_URL_KEY) || '';
+    document.getElementById('spKey').value = localStorage.getItem(SP_KEY_KEY) || '';
+    document.getElementById('supabaseModal').style.display = 'flex';
+  }
+
+  function closeSupabaseModal() {
+    document.getElementById('supabaseModal').style.display = 'none';
+  }
+
+  async function saveAndConnectSupabase() {
+    const url = document.getElementById('spUrl').value.trim();
+    const key = document.getElementById('spKey').value.trim();
+
+    if (!url || !key) {
+      alert('Supabase URL과 Anon Key를 모두 입력해주세요.');
+      return;
+    }
+
+    localStorage.setItem(SP_URL_KEY, url);
+    localStorage.setItem(SP_KEY_KEY, key);
+
+    initSupabaseClient();
+    closeSupabaseModal();
+
+    if (isSupabaseConnected) {
+      showToast('Supabase 연결 성공! 데이터를 동기화합니다.', 'success');
+      await fetchFromSupabase(true);
+    } else {
+      showToast('Supabase 연결에 실패했습니다. 키를 확인해주세요.', 'warning');
+    }
+  }
+
+  function disconnectSupabase() {
+    if (confirm('Supabase 클라우드 연동을 해제하고 로컬 모드로 전환하시겠습니까?')) {
+      localStorage.removeItem(SP_URL_KEY);
+      localStorage.removeItem(SP_KEY_KEY);
+      supabaseClient = null;
+      initSupabaseClient();
+      closeSupabaseModal();
+      showToast('로컬 모드로 전환되었습니다.');
+    }
+  }
+
+  // Team Config
   function loadTeamNames() {
     const saved = localStorage.getItem(CONFIG_KEY);
     if (saved) {
@@ -1181,7 +1455,7 @@
     }
   }
 
-  function saveTeamConfig() {
+  async function saveTeamConfig() {
     teamNames['1'] = document.getElementById('cfgTeam1').value.trim() || '1팀';
     teamNames['2'] = document.getElementById('cfgTeam2').value.trim() || '2팀';
     teamNames['3'] = document.getElementById('cfgTeam3').value.trim() || '3팀';
@@ -1192,6 +1466,21 @@
     renderTable();
     renderCalendar();
     closeTeamConfigModal();
+
+    if (supabaseClient) {
+      try {
+        await supabaseClient.from('outwork_team_configs').upsert({
+          id: 'config_main',
+          team1: teamNames['1'],
+          team2: teamNames['2'],
+          team3: teamNames['3'],
+          team4: teamNames['4'],
+          updated_at: new Date().toISOString()
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
     showToast('팀 이름 설정이 저장되었습니다.', 'success');
   }
 
@@ -1217,27 +1506,22 @@
     document.getElementById('cfgTeam4').value = teamNames['4'];
   }
 
-  function loadRecords() {
+  // Local Storage
+  function loadLocalRecords() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
       try { records = JSON.parse(saved); } catch (e) { records = [...defaultSamples]; }
     } else {
-      // 구버전 키 체크 호환
-      const v1 = localStorage.getItem('outwork_records_data');
-      if (v1) {
-        try { records = JSON.parse(v1); } catch (e) { records = [...defaultSamples]; }
-      } else {
-        records = [...defaultSamples];
-      }
-      saveRecords();
+      records = [...defaultSamples];
+      saveLocalRecords();
     }
   }
 
-  function saveRecords() {
+  function saveLocalRecords() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
   }
 
-  // View Switcher (List vs Calendar)
+  // View Switcher
   function switchView(view) {
     currentView = view;
     if (view === 'list') {
@@ -1255,7 +1539,6 @@
     }
   }
 
-  // Navigation & Filtering
   function setTeamTab(tab) {
     currentTab = tab;
     document.querySelectorAll('.team-tabs .tab-btn').forEach((btn, idx) => {
@@ -1279,7 +1562,6 @@
     showToast('검색 필터가 초기화되었습니다.');
   }
 
-  // Duration Helper
   function getDurationText(start, end) {
     if (!start || !end) return '';
     const [sh, sm] = start.split(':').map(Number);
@@ -1305,7 +1587,6 @@
     document.getElementById('formPurpose').value = text;
   }
 
-  // Render Statistics
   function renderStats() {
     const todayStr = new Date().toISOString().slice(0, 10);
     const todayRecords = records.filter(r => r.date === todayStr);
@@ -1335,7 +1616,6 @@
     document.getElementById('countTeam4').textContent = records.filter(r => r.team === '4').length;
   }
 
-  // Render Table
   function renderTable() {
     const tbody = document.getElementById('tableBody');
     const emptyNotice = document.getElementById('emptyNotice');
@@ -1403,8 +1683,7 @@
     });
   }
 
-  // Quick Return Action
-  function quickReturn(id) {
+  async function quickReturn(id) {
     const item = records.find(r => r.id === id);
     if (!item) return;
 
@@ -1414,20 +1693,20 @@
     item.endTime = `${hours}:${mins}`;
     item.status = '복귀완료';
 
-    saveRecords();
+    saveLocalRecords();
+    await syncRecordToSupabase(item);
     renderStats();
     renderTable();
     renderCalendar();
     showToast(`${item.name}님 복귀 처리 완료 (${item.endTime})`, 'success');
   }
 
-  // Calendar View Rendering
   function renderCalendar() {
     const grid = document.getElementById('calendarGrid');
     const title = document.getElementById('calMonthTitle');
     
     const year = calCurrentDate.getFullYear();
-    const month = calCurrentDate.getMonth(); // 0 ~ 11
+    const month = calCurrentDate.getMonth();
     title.textContent = `${year}년 ${month + 1}월`;
 
     grid.innerHTML = `
@@ -1446,7 +1725,6 @@
 
     const todayStr = new Date().toISOString().slice(0, 10);
 
-    // Prev month days
     for (let i = firstDay - 1; i >= 0; i--) {
       const cell = document.createElement('div');
       cell.className = 'cal-cell other-month';
@@ -1454,7 +1732,6 @@
       grid.appendChild(cell);
     }
 
-    // Current month days
     for (let date = 1; date <= lastDate; date++) {
       const cell = document.createElement('div');
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
@@ -1463,7 +1740,6 @@
 
       cell.innerHTML = `<div class="cal-date-num">${date}</div>`;
 
-      // Filter events for this day
       const dayRecords = records.filter(r => {
         if (r.date !== dateStr) return false;
         if (currentTab !== 'all' && r.team !== currentTab) return false;
@@ -1482,7 +1758,6 @@
       grid.appendChild(cell);
     }
 
-    // Next month days to fill grid
     const totalCells = firstDay + lastDate;
     const remaining = (7 - (totalCells % 7)) % 7;
     for (let i = 1; i <= remaining; i++) {
@@ -1503,7 +1778,6 @@
     renderCalendar();
   }
 
-  // Modal Actions
   function openModal(isEdit = false) {
     document.getElementById('modalTitle').textContent = isEdit ? '외근 내역 수정' : '신규 외근 등록';
     if (!isEdit) {
@@ -1533,7 +1807,7 @@
     document.getElementById('teamConfigModal').style.display = 'none';
   }
 
-  function handleFormSubmit(e) {
+  async function handleFormSubmit(e) {
     e.preventDefault();
     const id = document.getElementById('entryId').value || 'rec-' + Date.now();
     const record = {
@@ -1562,7 +1836,9 @@
       showToast('신규 외근이 성공적으로 등록되었습니다.', 'success');
     }
 
-    saveRecords();
+    saveLocalRecords();
+    await syncRecordToSupabase(record);
+
     closeModal();
     renderStats();
     renderTable();
@@ -1592,10 +1868,11 @@
     openModal(true);
   }
 
-  function deleteRecord(id) {
+  async function deleteRecord(id) {
     if (confirm('해당 외근 내역을 정말 삭제하시겠습니까?')) {
       records = records.filter(r => r.id !== id);
-      saveRecords();
+      saveLocalRecords();
+      await deleteFromSupabase(id);
       renderStats();
       renderTable();
       renderCalendar();
@@ -1603,7 +1880,6 @@
     }
   }
 
-  // Print Action
   function printDoc() {
     const title = currentTab === 'all' ? '전사 통합 외근대장' : `${teamNames[currentTab]} 외근대장`;
     document.getElementById('printSheetTitle').textContent = title;
@@ -1614,7 +1890,6 @@
     window.print();
   }
 
-  // Backup & Restore (JSON)
   function exportDataJSON() {
     const exportObj = {
       version: '2.0',
@@ -1640,15 +1915,22 @@
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = function(evt) {
+    reader.onload = async function(evt) {
       try {
         const imported = JSON.parse(evt.target.result);
         if (imported.records && Array.isArray(imported.records)) {
           records = imported.records;
           if (imported.teamNames) teamNames = imported.teamNames;
-          saveRecords();
+          saveLocalRecords();
           localStorage.setItem(CONFIG_KEY, JSON.stringify(teamNames));
           updateUIWithTeamNames();
+
+          if (supabaseClient) {
+            for (const r of records) {
+              await syncRecordToSupabase(r);
+            }
+          }
+
           renderStats();
           renderTable();
           renderCalendar();
@@ -1664,7 +1946,6 @@
     e.target.value = '';
   }
 
-  // Excel Export using SheetJS
   function exportToExcel() {
     if (typeof XLSX === 'undefined') {
       alert('엑셀 라이브러리를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
@@ -1698,7 +1979,6 @@
       return [header, ...rows];
     };
 
-    // 1. 전체 시트
     const allWs = XLSX.utils.aoa_to_sheet(createSheetData(records));
     allWs['!cols'] = [
       { wch: 6 },  { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
@@ -1707,7 +1987,6 @@
     ];
     XLSX.utils.book_append_sheet(wb, allWs, '전체 외근대장');
 
-    // 2. 1팀 ~ 4팀 시트
     ['1', '2', '3', '4'].forEach(teamId => {
       const teamItems = records.filter(r => r.team === teamId);
       const ws = XLSX.utils.aoa_to_sheet(createSheetData(teamItems));
